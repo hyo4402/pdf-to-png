@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
-import base64, io, urllib.request
-import fitz  # PyMuPDF
+import base64, io, requests
+import fitz
 from PIL import Image, ImageChops
 
 app = Flask(__name__)
@@ -10,13 +10,19 @@ def convert():
     data = request.json
     pdf_url = data.get('pdf_url', '')
     
-    req = urllib.request.Request(pdf_url, headers={'User-Agent': 'Mozilla/5.0'})
-    pdf_bytes = urllib.request.urlopen(req).read()
+    # Fix Google Drive URL để download trực tiếp
+    if 'drive.google.com' in pdf_url:
+        file_id = pdf_url.split('/d/')[1].split('/')[0]
+        pdf_url = f'https://drive.google.com/uc?export=download&id={file_id}'
     
-    # Convert PDF → PNG bằng PyMuPDF
+    # Download PDF
+    r = requests.get(pdf_url, allow_redirects=True)
+    pdf_bytes = r.content
+    
+    # Convert PDF → PNG
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     page = doc[0]
-    mat = fitz.Matrix(2, 2)  # scale 2x cho rõ
+    mat = fitz.Matrix(2, 2)
     pix = page.get_pixmap(matrix=mat)
     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
     
@@ -41,3 +47,11 @@ def convert():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
+```
+
+Thêm `requests` vào `requirements.txt`:
+```
+flask
+PyMuPDF
+Pillow
+requests
